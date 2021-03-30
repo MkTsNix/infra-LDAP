@@ -1,0 +1,32 @@
+---
+ - name: 'Prepare LDAP stand'
+   hosts: clientldap
+   become: true
+   gather_facts: true
+   vars:
+     ipa_dns: 192.168.11.120
+     ipa_server: serverldap.ipa.local
+     ipa_domain: ipa.local
+     ipa_realm: IPA.LOCAL
+    ##### IPA Client
+
+   tasks:
+     - name: 'Install FreeIPA client'
+       yum:
+         name:
+           - ipa-client
+         state: latest
+
+
+     - name: 'Add dns to resolv.conf'
+       template:
+         src: '../templates/resolv.conf.j2'
+         dest: '/etc/resolv.conf'
+
+     - name: 'Connect clinet to IPA-server'
+       shell: >
+         ipa-client-install
+         --mkhomedir
+         --principal=admin
+         --password=vagrant123
+         --unattended

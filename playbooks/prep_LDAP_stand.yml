@@ -1,0 +1,69 @@
+---
+ - name: 'Prepare LDAP stand'
+   hosts: all
+   become: true
+   gather_facts: true
+   vars:
+     ipa_dns: 192.168.11.120
+     ipa_server: serverldap.ipa.local
+     ipa_domain: ipa.local
+     ipa_realm: IPA.LOCAL
+
+   tasks:
+     - name: 'Install required packages'
+       yum:
+         name:
+           - nano
+           - net-tools
+           - tcpdump
+         state: present
+
+     - name: 'Change hostname'
+       hostname:
+         name: "{{ ansible_hostname }}.ipa.local"
+
+     - name: 'SElinux to permissive mode'
+       selinux:
+         policy: targeted
+         state: permissive
+
+     - name: 'Yum update'
+       shell: yum update -y
+
+     - name: 'Start Firewalld'
+       systemd:
+         name: firewalld
+         state: restarted
+         enabled: yes
+
+     - name: 'Copy script for firewall_rules'
+       template:
+         src: ../templates/firewalld_rules.sh
+         dest: /root/
+
+     - name: 'Apply firewall rules'
+       shell: sh /root/firewalld_rules.sh
+
+    ##### IPA SERVER
+
+     - name: 'Install FreeIPA server'
+       yum:
+         name:
+           - ipa-server
+           - ipa-server-dns
+         state: latest
+       when: ansible_hostname=='serverldap'
+
+     - name: 'Configure FreeIPA server'
+       shell: >
+         ipa-server-install
+         --hostname='{{ ipa_server }}'
+         --domain='{{ ipa_domain }}'
+         --realm='{{ ipa_realm }}'
+         --ds-password=vagrant123
+         --admin-password=vagrant123
+         --setup-dns
+         --forwarder=8.8.8.8
+         --auto-reverse
+         --unattended
+       when: ansible_hostname=='serverldap'
